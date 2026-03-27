@@ -72,21 +72,28 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 
   echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
   echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
+
   if [ -z "$KBUILD_COMPILER_STRING" ]; then
-    CC_VERSION=$($CC -v 2>&1 | grep ' version ' | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+    CC_VERSION=$($CC -v 2>&1 | grep ' version ' | head -n 1 \
+      | perl -pe 's/\(http.*?\)//gs' \
+      | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
   else
     CC_VERSION="$KBUILD_COMPILER_STRING"
   fi
 
-# Sexify kernel string 
-CC_VERSION=$(echo "$CC_VERSION" \
-  | sed -E 's/\bversion \b//I' \
-  | sed -E 's/\bclang\b/Clang/I' \
-  | sed -E 's/\bgcc\b/GCC/I')
+  CC_VERSION=$(echo "$CC_VERSION" \
+    | sed -E 's/\bversion \b//I' \
+    | sed -E 's/\bclang\b/Clang/I' \
+    | sed -E 's/\bgcc\b/GCC/I')
 
-  LD_VERSION=$($LD -v | head -n1 | sed 's/(compatible with [^)]*)//' \
-		      | perl -pe 's/\(http.*?\)//gs; s/\s*\(\/[^)]*\)//g' \
-		      | sed 's/[[:space:]]*$//')
+  if [ -z "$KBUILD_LINKER_STRING" ]; then
+    LD_VERSION=$($LD -v | head -n1 \
+      | sed 's/(compatible with [^)]*)//' \
+      | perl -pe 's/\(http.*?\)//gs; s/\s*\(\/[^)]*\)//g' \
+      | sed 's/[[:space:]]*$//')
+  else
+    LD_VERSION="$KBUILD_LINKER_STRING"
+  fi
 
   printf '#define LINUX_COMPILER "%s"\n' "$CC_VERSION, $LD_VERSION"
   ) > .tmpcompile
