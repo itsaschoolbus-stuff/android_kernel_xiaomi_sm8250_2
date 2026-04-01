@@ -11,6 +11,9 @@
  */
 #include "sched.h"
 
+struct cfs_rq *task_cfs_rq(struct task_struct *p);
+int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se);
+
 static DEFINE_SPINLOCK(sched_debug_lock);
 
 /*
@@ -318,7 +321,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	SEQ_printf(m, "%15s %5d %9Ld.%06ld %c %9Ld.%06ld %c %9Ld.%06ld %9Ld.%06ld %9Ld %5d ",
 		p->comm, task_pid_nr(p),
 		SPLIT_NS(p->se.vruntime),
-		entity_eligible(cfs_rq_of(&p->se), &p->se) ? 'E' : 'N',
+		entity_eligible(task_cfs_rq(p), &p->se) ? 'E' : 'N',
 		SPLIT_NS(p->se.deadline),
 		p->se.custom_slice ? 'S' : ' ',
 		SPLIT_NS(p->se.slice),
@@ -689,12 +692,13 @@ static int __init init_sched_debug_procfs(void)
 
 __initcall(init_sched_debug_procfs);
 
-#define __P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)F)
-#define   P(F)	SEQ_printf(m, "%-45s:%21Ld\n",	     #F, (long long)p->F)
+#define __PS(S, F) SEQ_printf(m, "%-45s:%21Ld\n", S, (long long)(F))
+#define __P(F) __PS(#F, F)
+#define   P(F) __PS(#F, p->F)
 #define   PM(F, M) __PS(#F, p->F & (M))
-#define __PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)F))
-#define   PN(F)	SEQ_printf(m, "%-45s:%14Ld.%06ld\n", #F, SPLIT_NS((long long)p->F))
-
+#define __PSN(S, F) SEQ_printf(m, "%-45s:%14Ld.%06ld\n", S, SPLIT_NS((long long)(F)))
+#define __PN(F) __PSN(#F, F)
+#define   PN(F) __PSN(#F, p->F)
 
 #ifdef CONFIG_NUMA_BALANCING
 void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
@@ -736,6 +740,8 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)F)
 #define P(F) \
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)p->F)
+#define PM(F, M) \
+	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)(p->F & (M)))
 #define P_SCHEDSTAT(F) \
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)schedstat_val(p->F))
 #define __PN(F) \
@@ -829,6 +835,7 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 #undef PN
 #undef __PN
 #undef P_SCHEDSTAT
+#undef PM
 #undef P
 #undef __P
 
